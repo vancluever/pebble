@@ -1729,12 +1729,21 @@ func (wfe *WebFrontEndImpl) NewOrder(
 	profileName := newOrder.Profile
 	if profileName == "" {
 		// In true pebble chaos fashion, pick a random profile for orders that
-		// don't specify one.
+		// don't specify one. Search for a default profile first though, this helps
+		// emulate CAs that have one.
 		profNames := make([]string, 0, len(profiles))
+		var hasDefault bool
 		for name := range profiles {
+			if wfe.ca.IsProfileDefault(name) {
+				profileName = name
+				hasDefault = true
+				break
+			}
 			profNames = append(profNames, name)
 		}
-		profileName = profNames[rand.Intn(len(profiles))]
+		if !hasDefault {
+			profileName = profNames[rand.Intn(len(profiles))]
+		}
 	}
 	_, ok := profiles[profileName]
 	if !ok {

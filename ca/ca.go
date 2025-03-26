@@ -45,8 +45,10 @@ type chain struct {
 }
 
 type Profile struct {
-	Description    string
-	ValidityPeriod uint64
+	Description       string
+	Default           bool
+	PromoteCommonName bool
+	ValidityPeriod    uint64
 }
 
 func (c *chain) String() string {
@@ -309,6 +311,22 @@ func (ca *CAImpl) newCertificate(domains []string, ips []net.IP, key crypto.Publ
 		IsCA:                  false,
 	}
 
+	// Check to see if the profile allows for the promotion of first domain to
+	// the common name. This helps emulate the Let's Encrypt "classic" profile or
+	// other CAs that follow similar behavior.
+	if prof.PromoteCommonName {
+		var cn string
+		switch {
+		case len(domains) > 0:
+			cn = domains[0]
+		case len(ips) > 0:
+			cn = ips[0].String()
+		}
+		if cn != "" {
+			template.Subject.CommonName = cn
+		}
+	}
+
 	if ca.ocspResponderURL != "" {
 		template.OCSPServer = []string{ca.ocspResponderURL}
 	}
@@ -524,4 +542,12 @@ func (ca *CAImpl) GetProfiles() map[string]string {
 		res[name] = prof.Description
 	}
 	return res
+}
+
+func (ca *CAImpl) IsProfileDefault(name string) bool {
+	if profile, ok := ca.profiles[name]; ok {
+		return profile.Default
+	}
+
+	return false
 }
